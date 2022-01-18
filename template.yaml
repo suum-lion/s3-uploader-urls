@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: s3-presigned-urls - Return S3 Presigned URLs
+
+Globals:
+  Function:
+    Timeout: 3
+
+Resources:
+  PresignedUploadUrlApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowMethods:
+          - GET
+          - POST
+          - DELETE
+          - OPTIONS
+        AllowHeaders:
+          - "*"
+        AllowOrigins:
+          - "*"
+
+  UploadRequestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      Architectures:
+        - x86_64
+      CodeUri: getSignedUrl/
+      Handler: app.handler
+      Timeout: 3
+      MemorySize: 128
+      Environment:
+        Variables:
+          UploadBucket: !Ref S3UploadBucket
+      Policies:
+        S3WritePolicy:
+          BucketName: !Ref S3UploadBucket
+
+      Events:
+        UploadAssetApi:
+          Type: HttpApi
+          Properties:
+            Path: /uploads
+            Method: get
+            ApiId: !Ref PresignedUploadUrlApi
+
+    Metadata:
+      DockerTag: nodejs14.x-v1
+      DockerContext: ./getSignedUrl
+      Dockerfile: Dockerfile
+
+  S3UploadBucket:
+    Type: AWS::s3::Bucket
+    Properties:
+      CorsConfiguration:
+        - AllowRules:
+            - AllowedHeaders:
+                - "*"
+            - AllowedMethods:
+                - GET
+                - PUT
+                - HEAD
+            - AllowedOrigins:
+                - "*"
+
+Outputs:
+  PresignedUploadUrlApi:
+    Description: "API Gateway endpoint URL for Prod stage for presigned s3 upload url"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/uploads/"
+  UploadRequestFunction:
+    Description: "S3 upload url request Lambda Function ARN"
+    Value: !GetAtt UploadRequestFunction.Arn
+  S3UploadBucketName:
+    Description: "S3 Bucket for application uploads"
+    Value: !Ref S3UploadBucket
