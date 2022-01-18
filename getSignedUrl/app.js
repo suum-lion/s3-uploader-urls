@@ -1,33 +1,31 @@
-// const axios = require('axios')
-// const url = 'http://checkip.amazonaws.com/';
-let response;
+import AWS from "aws-sdk";
 
-/**
- *
- * Event doc: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html#api-gateway-simple-proxy-for-lambda-input-format
- * @param {Object} event - API Gateway Lambda Proxy Input Format
- *
- * Context doc: https://docs.aws.amazon.com/lambda/latest/dg/nodejs-prog-model-context.html 
- * @param {Object} context
- *
- * Return doc: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html
- * @returns {Object} object - API Gateway Lambda Proxy Output Format
- * 
- */
-exports.handler = async (event, context) => {
-    try {
-        // const ret = await axios(url);
-        response = {
-            'statusCode': 200,
-            'body': JSON.stringify({
-                message: 'hello world',
-                // location: ret.data.trim()
-            })
-        }
-    } catch (err) {
-        console.log(err);
-        return err;
-    }
+AWS.config.update({ region: process.env.AWS_REGION });
 
-    return response
+const s3 = new AWS.S3();
+const URL_EXPIRATION_SECONDS = 300;
+
+const getSignedUrl = async event => {
+  const randomId = ~~(Math.random() * 100000000);
+  const key = `all/${randomId}.jpg`;
+
+  const s3Params = {
+    Bucket: process.env.UploadBucket,
+    Key: key,
+    Expires: URL_EXPIRATION_SECONDS,
+    ContentType: "image/jpeg"
+  };
+
+  console.log("Params: ", s3Params);
+
+  const uploadUrl = await s3.getSignedUrlPromise("putObject", s3Params);
+
+  return JSON.stringify({
+    uploadUrl,
+    key
+  });
+};
+
+export const handler = async event => {
+  return getSignedUrl(event);
 };

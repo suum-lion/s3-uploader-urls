@@ -27,8 +27,6 @@ Resources:
       PackageType: Image
       Architectures:
         - x86_64
-      CodeUri: getSignedUrl/
-      Handler: app.handler
       Timeout: 3
       MemorySize: 128
       Environment:
@@ -52,26 +50,25 @@ Resources:
       Dockerfile: Dockerfile
 
   S3UploadBucket:
-    Type: AWS::s3::Bucket
+    Type: AWS::S3::Bucket
     Properties:
       CorsConfiguration:
-        - AllowRules:
-            - AllowedHeaders:
-                - "*"
-            - AllowedMethods:
-                - GET
-                - PUT
-                - HEAD
-            - AllowedOrigins:
-                - "*"
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+              - DELETE
+              - HEAD
+            AllowedOrigins:
+              - "*"
 
 Outputs:
-  PresignedUploadUrlApi:
-    Description: "API Gateway endpoint URL for Prod stage for presigned s3 upload url"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/uploads/"
-  UploadRequestFunction:
-    Description: "S3 upload url request Lambda Function ARN"
-    Value: !GetAtt UploadRequestFunction.Arn
+  APIendpoint:
+    Description: "HTTP API endpoint URL"
+    Value: !Sub "https://${PresignedUploadUrlApi}.execute-api.${AWS::Region}.amazonaws.com"
   S3UploadBucketName:
-    Description: "S3 Bucket for application uploads"
+    Description: "S3 bucket for application uploads"
     Value: !Ref S3UploadBucket

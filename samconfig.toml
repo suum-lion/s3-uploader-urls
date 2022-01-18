@@ -1,0 +1,12 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "s3-uploader"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-1angxchzuq7t0"
+s3_prefix = "s3-uploader"
+region = "ap-northeast-2"
+profile = "happy-athumb"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+image_repositories = ["UploadRequestFunction=599843248941.dkr.ecr.ap-northeast-2.amazonaws.com/s3uploadere57b6963/uploadrequestfunction72975b57repo"]
