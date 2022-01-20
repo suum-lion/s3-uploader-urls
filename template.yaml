@@ -5,21 +5,82 @@ Description: s3-presigned-urls - Return S3 Presigned URLs
 Globals:
   Function:
     Timeout: 3
+    Environment:
+      Variables:
+        UploadBucket: !Ref S3UploadBucket
+
+Parameters:
+  CognitoUserPoolDomainParameter:
+    Type: String
+    Default: upload-user-pool
+    Description: CognitoUserPool Domain Name
 
 Resources:
-  PresignedUploadUrlApi:
-    Type: AWS::Serverless::HttpApi
+  # Cognito User Pool
+  MyCognitoUserPool:
+    Type: "AWS::Cognito::UserPool"
     Properties:
-      CorsConfiguration:
-        AllowMethods:
-          - GET
-          - POST
-          - DELETE
-          - OPTIONS
-        AllowHeaders:
-          - "*"
-        AllowOrigins:
-          - "*"
+      UserPoolName: MyUserPool
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+      UsernameAttributes:
+        - email
+      Schema:
+        - AttributeDataType: String
+          Name: email
+          Required: false
+
+  MyCognitoUserPoolClient:
+    Type: "AWS::Cognito::UserPoolClient"
+    Properties:
+      UserPoolId: !Ref MyCognitoUserPool
+      ClientName: "MyUserPoolClient"
+      GenerateSecret: false
+      CallbackURLs:
+        - https://example.com/callback
+        - http://localhost:3000/callback
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - code
+        - implicit
+      AllowedOAuthScopes:
+        - phone
+        - email
+        - openid
+        - profile
+        - get-signed-url-api/read_signed_url
+      SupportedIdentityProviders:
+        - COGNITO
+    DependsOn: MyCognitoUserPoolResourceServer
+
+  MyCognitoUserPoolResourceServer:
+    Type: AWS::Cognito::UserPoolResourceServer
+    Properties:
+      UserPoolId: !Ref MyCognitoUserPool
+      Identifier: "get-signed-url-api"
+      Name: "Get Signed Url API"
+      Scopes:
+        - ScopeName: "read_signed_url"
+          ScopeDescription: "Read Signed Url"
+
+  MyCognitoUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      UserPoolId: !Ref MyCognitoUserPool
+      Domain:
+        Ref: CognitoUserPoolDomainParameter
+
+  PresignedUploadUrlApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Cors: "'*'"
+      Auth:
+        DefaultAuthorizer: MyCognitoAuthorizer
+        Authorizers:
+          MyCognitoAuthorizer:
+            UserPoolArn: !GetAtt MyCognitoUserPool.Arn
 
   UploadRequestFunction:
     Type: AWS::Serverless::Function
@@ -27,22 +88,23 @@ Resources:
       PackageType: Image
       Architectures:
         - x86_64
-      Timeout: 3
+      Timeout: 100
       MemorySize: 128
-      Environment:
-        Variables:
-          UploadBucket: !Ref S3UploadBucket
       Policies:
         S3WritePolicy:
           BucketName: !Ref S3UploadBucket
 
       Events:
         UploadAssetApi:
-          Type: HttpApi
+          Type: Api
           Properties:
+            RestApiId: !Ref PresignedUploadUrlApi
             Path: /uploads
             Method: get
-            ApiId: !Ref PresignedUploadUrlApi
+            Auth:
+              Authorizer: MyCognitoAuthorizer
+              AuthorizationScopes:
+                - get-signed-url-api/read_signed_url
 
     Metadata:
       DockerTag: nodejs14.x-v1
@@ -66,9 +128,21 @@ Resources:
               - "*"
 
 Outputs:
-  APIendpoint:
-    Description: "HTTP API endpoint URL"
-    Value: !Sub "https://${PresignedUploadUrlApi}.execute-api.${AWS::Region}.amazonaws.com"
+  GetSignedUrlServiceApi:
+    Description: "API Gateway endpoint URL for prod stage for GetSignedUrlService function"
+    Value: !Sub "https://${PresignedUploadUrlApi}.execute-api.${AWS::Region}.amazonaws.com/prod/uploads"
+  GetSignedUrlServiceFunction:
+    Description: "TodoService Lambda Function ARN"
+    Value: !GetAtt UploadRequestFunction.Arn
+  GetSignedUrlServiceFunctionIamRole:
+    Description: "Implicit IAM Role"
+    Value: !GetAtt UploadRequestFunctionRole.Arn
+  MyCognitoUserPoolURL:
+    Description: "MyCognitoUserPool URL"
+    Value: !Sub "https://${CognitoUserPoolDomainParameter}.auth.${AWS::Region}.amazoncognito.com"
+  MyCognitoUserPoolClientID:
+    Description: "MyCognitoUserPoolClient client_id"
+    Value: !Ref MyCognitoUserPoolClient
   S3UploadBucketName:
     Description: "S3 bucket for application uploads"
     Value: !Ref S3UploadBucket
