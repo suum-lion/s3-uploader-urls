@@ -12,13 +12,16 @@ function Callback() {
 
   const authorize_endpoint =
     "https://upload-user-pool.auth.ap-northeast-2.amazoncognito.com/oauth2/token";
-  const client_id = "53kmmobgd8cc887mm79sd77m1h";
+  const client_id = "2km9v2t54el6t0g06pbg8ukd4t";
   const redirect_uri = "http://localhost:3000/callback";
+  const scope = "openid email get-signed-url-api/read_signed_url";
+
   const qs = queryString.stringify({
     grant_type: "authorization_code",
     code,
     redirect_uri,
-    client_id
+    client_id,
+    scope
   });
 
   const getAccessToken = useCallback(async () => {
@@ -35,9 +38,9 @@ function Callback() {
       localStorage.setItem("access_token", access_token);
       localStorage.setItem("refresh_token", refresh_token);
 
-      window.location.replace('/')
+      window.location.replace("/");
     } catch (e) {
-      window.location.replace('/')
+      window.location.replace("/");
     }
   }, [qs]);
 

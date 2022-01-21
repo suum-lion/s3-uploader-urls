@@ -20,6 +20,8 @@ const getSignedUrl = async event => {
 
   const uploadUrl = await s3.getSignedUrlPromise("putObject", s3Params);
 
+  console.log("uploadUrl: ", uploadUrl);
+
   return JSON.stringify({
     uploadUrl,
     key
@@ -27,5 +29,14 @@ const getSignedUrl = async event => {
 };
 
 export const handler = async event => {
-  return getSignedUrl(event);
+  const body = await getSignedUrl(event);
+  console.log(body);
+  return {
+    statusCode: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "'GET,PUT,POST,DELETE,PATCH,OPTIONS'"
+    },
+    body
+  };
 };

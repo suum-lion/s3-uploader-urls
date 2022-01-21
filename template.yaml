@@ -75,17 +75,25 @@ Resources:
     Type: AWS::Serverless::Api
     Properties:
       StageName: prod
-      Cors: "'*'"
+      Cors:
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowOrigin: "'localhost'"
+        AllowHeaders: "'Content-type'"
+        AllowCredentials: true
       Auth:
         DefaultAuthorizer: MyCognitoAuthorizer
         Authorizers:
           MyCognitoAuthorizer:
+            AuthorizationScopes:
+              - get-signed-url-api/read_signed_url
             UserPoolArn: !GetAtt MyCognitoUserPool.Arn
 
   UploadRequestFunction:
     Type: AWS::Serverless::Function
     Properties:
-      PackageType: Image
+      CodeUri: ./getSignedUrl
+      Handler: app.handler
+      Runtime: nodejs14.x
       Architectures:
         - x86_64
       Timeout: 100
@@ -105,11 +113,6 @@ Resources:
               Authorizer: MyCognitoAuthorizer
               AuthorizationScopes:
                 - get-signed-url-api/read_signed_url
-
-    Metadata:
-      DockerTag: nodejs14.x-v1
-      DockerContext: ./getSignedUrl
-      Dockerfile: Dockerfile
 
   S3UploadBucket:
     Type: AWS::S3::Bucket
